@@ -49,6 +49,21 @@ export interface FormBranding {
   fontFamily?: string
   customCss?: string
 }
+
+export interface Form {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: 'draft' | 'published' | 'archived';
+  branding?: FormBranding | null;
+  version: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  published_at?: string | null;
+  elements?: FormElement[];
+}
+
 export interface FormBuilderState {
   form: Partial<Form>
   selectedElement: string | null

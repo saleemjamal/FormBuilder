@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
 import { useAuth } from '@/hooks/useAuth'
@@ -10,6 +10,7 @@ import { FormCanvas } from './FormCanvas'
 import { PropertiesPanel } from './PropertiesPanel'
 import { FormBuilderHeader } from './FormBuilderHeader'
 import { v4 as uuidv4 } from 'uuid'
+import { supabase } from '@/lib/supabase'
 
 interface FormBuilderProps {
   formId?: string
@@ -112,6 +113,68 @@ export function FormBuilder({ formId }: FormBuilderProps) {
   const selectElement = (elementId: string | null) => {
     setBuilderState(prev => ({ ...prev, selectedElement: elementId }))
   }
+
+  // Save form and elements to Supabase
+  const saveForm = async (statusOverride?: 'draft' | 'published' | 'archived') => {
+    if (!user) {
+      console.log('User not authenticated')
+      return
+    }
+    const formToSave = {
+      ...builderState.form,
+      status: statusOverride || builderState.form.status || 'draft',
+      created_by: user.id,
+      // Remove elements before upsert
+      elements: undefined,
+    }
+    let formId = builderState.form.id
+    let upsertedForm
+    try {
+      // Upsert form
+      const { data: formData, error: formError } = await supabase
+        .from('forms')
+        .upsert([formToSave], { onConflict: 'id' })
+        .select()
+      if (formError) throw formError
+      upsertedForm = formData && formData[0]
+      formId = upsertedForm?.id || formId
+      // Upsert form elements
+      if (formId && builderState.form.elements) {
+        // Remove all existing elements for this form (for simplicity)
+        await supabase.from('form_elements').delete().eq('form_id', formId)
+        // Insert all elements
+        const elementsToInsert = builderState.form.elements.map(el => ({
+          ...el,
+          form_id: formId,
+          options: el.options ? JSON.stringify(el.options) : null,
+          validation: el.validation ? JSON.stringify(el.validation) : null,
+        }))
+        if (elementsToInsert.length > 0) {
+          const { error: elError } = await supabase.from('form_elements').insert(elementsToInsert)
+          if (elError) throw elError
+        }
+      }
+      setBuilderState(prev => ({ ...prev, form: { ...prev.form, id: formId }, isDirty: false }))
+      console.log('Form saved successfully!')
+    } catch (err) {
+      console.error('Error saving form:', err)
+    }
+  }
+
+  // Debounced auto-save (10s)
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    if (builderState.isDirty) {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+      saveTimeout.current = setTimeout(() => {
+        saveForm()
+      }, 10000)
+    }
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    }
+  }, [builderState.form, builderState.isDirty])
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col h-screen bg-gray-50">
@@ -119,9 +182,14 @@ export function FormBuilder({ formId }: FormBuilderProps) {
         <FormBuilderHeader
           form={builderState.form}
           isDirty={builderState.isDirty}
-          onSave={() => {/* TODO: Implement save */}}
+          onSave={() => saveForm('draft')}
           onPreview={() => {/* TODO: Implement preview */}}
-          onPublish={() => {/* TODO: Implement publish */}}
+          onPublish={() => saveForm('published')}
+          onUpdateForm={(updates) => setBuilderState(prev => ({
+            ...prev,
+            form: { ...prev.form, ...updates },
+            isDirty: true,
+          }))}
         />
 
         {/* Main Content */}

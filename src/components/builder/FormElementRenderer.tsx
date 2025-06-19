@@ -183,8 +183,8 @@ export function FormElementRenderer({
         <div className="absolute top-2 right-2 flex space-x-1">
           <button
             onClick={(e) => {
-              e.stopPropagation()
-              // Open properties panel (already selected)
+              e.stopPropagation();
+              onSelect(); // Always call onSelect to trigger panel/tab switch
             }}
             className="p-1 bg-white rounded shadow-sm hover:bg-gray-50"
           >

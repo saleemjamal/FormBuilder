@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Form, FormElement } from '@/types/form'
 import { FormElementOption } from '@/types/form'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
@@ -20,16 +20,19 @@ export function PropertiesPanel({
   onUpdateForm,
   onUpdateElement,
 }: PropertiesPanelProps) {
+  console.log('PropertiesPanel selectedElement:', selectedElement)
+  const currentElement = elements.find(el => el.id === selectedElement)
+  console.log('PropertiesPanel currentElement:', currentElement)
   const [activeTab, setActiveTab] = useState<'form' | 'element'>('form')
   
-  const currentElement = elements.find(el => el.id === selectedElement)
-
-  // Switch to element tab when an element is selected
-  useState(() => {
+  // Always switch to element tab when a new element is selected
+  useEffect(() => {
     if (selectedElement && currentElement) {
       setActiveTab('element')
+    } else {
+      setActiveTab('form')
     }
-  })
+  }, [selectedElement, currentElement])
 
   const addOption = () => {
     if (!currentElement) return
@@ -61,22 +64,43 @@ export function PropertiesPanel({
     const updatedOptions = currentElement.options.filter((_, i) => i !== index)
     onUpdateElement(currentElement.id, { options: updatedOptions })
   }
-                  placeholder="Enter form description"
-                />
-              </div>
 
-              <div>
-                <label className="form-label">Status</label>
-                <select
-                  value={form.status || 'draft'}
-                  onChange={(e) => onUpdateForm({ status: e.target.value as any })}
-                  className="form-input"
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
+  // Options for select/radio/checkbox
+  const hasOptions = currentElement && ['select', 'radio', 'checkbox'].includes(currentElement.type);
+
+  return (
+    <div className="space-y-6">
+      {/* Form Settings Tab */}
+      {activeTab === 'form' && (
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Form Settings
+            </h3>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="form-label">Description</label>
+              <input
+                type="text"
+                value={form.description || ''}
+                onChange={e => onUpdateForm({ description: e.target.value })}
+                className="form-input"
+                placeholder="Enter form description"
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Status</label>
+              <select
+                value={form.status || 'draft'}
+                onChange={(e) => onUpdateForm({ status: e.target.value as any })}
+                className="form-input"
+              >
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="archived">Archived</option>
+              </select>
             </div>
           </div>
 
