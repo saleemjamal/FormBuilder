@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+[form_builder_all_documentation.md](mdc:form_builder_all_documentation.md) contains all the information about this project. Keep this in memory so you can stay aligned. 
+
+export default {
+  // ... your config
+
+} 
