@@ -11,6 +11,7 @@ import { PropertiesPanel } from './PropertiesPanel'
 import { FormBuilderHeader } from './FormBuilderHeader'
 import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 
 interface FormBuilderProps {
   formId?: string
@@ -120,12 +121,11 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       console.log('User not authenticated')
       return
     }
+    const { elements, ...formWithoutElements } = builderState.form;
     const formToSave = {
-      ...builderState.form,
+      ...formWithoutElements,
       status: statusOverride || builderState.form.status || 'draft',
       created_by: user.id,
-      // Remove elements before upsert
-      elements: undefined,
     }
     let formId = builderState.form.id
     let upsertedForm
@@ -156,8 +156,15 @@ export function FormBuilder({ formId }: FormBuilderProps) {
       }
       setBuilderState(prev => ({ ...prev, form: { ...prev.form, id: formId }, isDirty: false }))
       console.log('Form saved successfully!')
+      toast.success('Form saved successfully!')
     } catch (err) {
-      console.error('Error saving form:', err)
+      if (err instanceof Error) {
+        console.error('Error saving form:', err.message, err.stack);
+        toast.error(`Error saving form: ${err.message}`)
+      } else {
+        console.error('Error saving form:', JSON.stringify(err, null, 2));
+        toast.error('Error saving form!')
+      }
     }
   }
 
